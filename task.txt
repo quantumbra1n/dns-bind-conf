@@ -1,0 +1,799 @@
+
+=====УСЛУГА=====
+
+Изучить возможность переноса конфигурации ISC BIND9 
+с использованием view в два экземпляра DNS-сервера PowerDNS.
+
+
+=====ЗАДАЧА=====
+
+1. Для текущей конфигурации DNS-сервера ISC BIND9, 
+в которой используется механизм view для разделения клиентов 
+проработать процесс миграции в два экземпляра DNS сервера powerdns
+(для обслуживания internal и external зон).
+
+2. Для PowerDNS изучить возможность использования базы данных (PostgreSQL)
+для хранения зон и API настройки 
+для управлениями DNS-зонами и записями 
+написать сопроводительную документацию.
+
+3. Весь исходный код, созданный в процессе работы над задачей 
+хранить в git репозитории.
+
+
+=====ДЕКОМПОЗИЦИЯ ЗАДАЧИ=====
+
+0. Установка необходимых пакетов.
+    
+    0.1 BIND: 
+
+        0.1.1 bind.
+        0.1.2 bind-utils.
+
+    0.2 PowerDNS: 
+
+        0.2.1 pdns. 
+        0.2.2 pdns-backend-postgresql.x86_64.
+
+    0.3 PostgreSQL: 
+
+        0.3.1 postgresql-server. 
+        0.3.2 postgresql-contrib.
+
+
+1. Для текущей конфигурации DNS-сервера ISC BIND9, 
+в которой используется механизм view для разделения клиентов 
+проработать процесс миграции в два экземпляра DNS-сервера PowerDNS
+(для обслуживания internal и external зон):
+    
+    1.1 Конфигурация BIND для DNS-сервера и его клиентов:
+
+        1.1.1 VM1. Авторитетный DNS-сервер. IP-адрес 192.168.124.87:
+
+            1.1.1.1 Файл основной конфигурации DNS-сервера (/etc/named.conf):
+
+                1.1.1.1.1 Создание списка доступа acl "internal".
+                1.1.1.1.2 Настройка options.
+
+                1.1.1.1.3 Настройка зон для механизмов view:
+
+                    1.1.1.1.3.1 Зоны и настройки представления "internal".
+                    1.1.1.1.3.2 Зоны и настройки представления ""external".
+        
+            1.1.1.2 Файл записи для зоны "mydomain.ru" (/var/named/zones):
+
+                1.1.1.2.1 В представлении "internal" (/var/named/mydomain.ru).
+                1.1.1.2.2 В представлении "external" (/var/named/ext-mydomain.ru).
+
+            1.1.1.3 Проверка правильности настроек файла /etc/named.conf.
+            1.1.1.4 Разрешение службы BIND и запуск DNS-сервера.
+
+        1.2.2 VM2. Internal-клиент. IP-адрес 192.168.124.64:
+
+            1.2.2.1 Настройка файла-резольвера для подключения к авторитетному DNS-серверу (/etc/resolv.conf).
+
+            1.2.2.2 Проверка подключения к зонам internal с помощью dig, nslookup и ping:
+
+                1.2.2.2.1 Зона ns или ns.mydomain.ru.
+                1.2.2.2.2 Зона core или core.mydomain.ru.
+                1.2.2.2.3 Зона www или www.mydomain.ru.
+
+            1.2.2.3 Проверка подключения к зонам external с помощью dig, nslookup и ping:
+
+                1.2.2.2.1 Зона ns или ns.mydomain.ru.
+                1.2.2.2.2 Зона ftp или ftp.mydomain.ru.
+                1.2.2.2.3 Зона mail или mail.mydomain.ru.
+
+        1.2.2 VM3. External-клиент. IP-адрес 192.168.124.64:
+
+            1.2.2.1 Настройка файла-резольвера для подключения к авторитетному DNS-серверу (/etc/resolv.conf).
+
+            1.2.2.2 Проверка подключения к зонам internal с помощью dig, nslookup и ping:
+
+                1.2.2.2.1 Зона ns или ns.mydomain.ru.
+                1.2.2.2.2 Зона core или core.mydomain.ru.
+                1.2.2.2.3 Зона www или www.mydomain.ru.
+
+            1.2.2.3 Проверка подключения к зонам external с помощью dig, nslookup и ping:
+
+                1.2.2.2.1 Зона ns или ns.mydomain.ru.
+                1.2.2.2.2 Зона ftp или ftp.mydomain.ru.
+                1.2.2.2.3 Зона mail или mail.mydomain.ru.
+
+    1.3 Миграция настроек из BIND в PowerDNS:
+
+        1.3.1 Настройка файла DNS-сервера PowerDNS (/etc/pdns/pdns.conf).
+        1.3.2 Миграция настроек из BIND в SQL с помощью zone2sql.
+        1.3.3 Схема базы данных после миграции.
+
+    1.4 Отключение службы DNS-сервера BIND.
+    1.5 Разрешение и запуск DNS-сервера PowerDNS.
+
+
+2. Для PowerDNS изучить возможность использования базы данных (PostgreSQL)
+для хранения зон и API настройки
+для управлениями DNS-зонами и записями 
+написать сопроводительную документацию:
+
+    2.1 Вход в базу данных PostgreSQL под root.
+    2.2 Создание пользователя pdns для базы данных PostgresSQL.
+    2.3 Создание базы данных pdns-db.
+    2.4 Импорт схемы базы данных в PowerDNS.
+    
+    2.5 Запросы к pdns-db:
+        
+        2.5.1 Вывод всех имен доменов из таблицы domains.
+        2.5.2 Вывод всех TTL из таблицы records.
+        2.5.3 Вывод статуса DNS-сервера из таблицы domains.
+        2.5.4 Вывод всех полей таблицы domains.
+        2.5.5 Вывод всех полей таблицы records.
+    
+    2.6 Написание сопроводительной документации
+
+        2.6.1 Вход в PostgreSQL под пользователем pdns.
+        2.6.2 Подключение к pdns-db.
+
+        2.6.3 Примеры запросов:
+
+            2.6.3.1 Вывод полей таблицы records.
+            2.6.3.2 Вывод полей таблицы domains.
+            2.6.3.3 Изменение имени домена в поле таблицы domains.
+            2.6.3.4 Изменение статуса DNS-сервера в поле таблицы domains.
+            2.6.3.5  Изменение TTL в поле таблицы records.
+
+3. Весь исходный код, созданный в процессе работы над задачей 
+хранить в git репозитории:
+    
+    3.1 Настройка конфигурации пользователя git:
+
+        3.1.1 Указание почты.
+        3.1.2 Указание имени пользователя.
+
+    3.2 Инициализация git-репозитория
+    3.3 Выкладывание git-репозитория в github.
+
+
+=====ПОШАГОВАЯ РАБОТА=====
+
+1. Вход в VM1 по ssh через терминал основной ОС (Fedora 39).
+
+user@fedora:~$ ssh root@192.168.124.87
+root@192.168.124.87's password: 
+[root@vm1 ~]# 
+
+
+2. Установка необходимых пакетов
+
+[root@vm1 ~]# yum install -y bind bind-utils
+[root@vm1 ~]# yum install -y pdns pdns-backend-postgresql.x86_64
+[root@vm1 ~]# yum install -y postgresql-server postgresql-contrib
+
+
+3. Настройка файла /etc/named.conf.
+
+[root@vm1 ~]# nano /etc/named.conf
+[root@vm1 ~]# cat /etc/named.conf
+//
+// named.conf
+//
+
+acl "internal" {
+	127.0.0.1;
+	192.168.124.87;
+	192.168.124.64;
+};
+
+options {
+	listen-on port 53 { 127.0.0.1; 192.168.124.87; };
+	listen-on-v6 port 53 { ::1; };
+	directory 	"/var/named";
+	dump-file 	"/var/named/data/cache_dump.db";
+	statistics-file "/var/named/data/named_stats.txt";
+	memstatistics-file "/var/named/data/named_mem_stats.txt";
+	secroots-file	"/var/named/data/named.secroots";
+	recursing-file	"/var/named/data/named.recursing";
+	
+	allow-query     { localhost; "internal"; any; };
+	allow-recursion { "internal"; any; };
+
+	recursion yes;
+
+	dnssec-validation no;
+
+	managed-keys-directory "/var/named/dynamic";
+	geoip-directory "/usr/share/GeoIP";
+
+	pid-file "/run/named/named.pid";
+	session-keyfile "/run/named/session.key";
+
+	include "/etc/crypto-policies/back-ends/bind.config";
+};
+
+logging {
+        channel default_debug {
+                file "data/named.run";
+                severity dynamic;
+        };
+};
+
+view "internal" {
+
+	match-clients { "internal"; };
+
+        zone "mydomain.ru" IN {
+		type master;
+		file "zones/mydomain.ru";
+		allow-update { any; };
+	};
+};
+
+view "external" {
+	
+	match-clients { any; };
+	
+	zone "mydomain.ru" IN {
+		type master;
+		file "zones/ext-mydomain.ru";
+		allow-update { any; };
+	};
+};
+
+include "/etc/named.root.key";
+
+
+3. Создадим папку "zones" для файлов-записей зон и перейдем в нее.
+
+[root@vm1 ~]# cd /var/named
+[root@vm1 /var/named]# mkdir zones
+[root@vm1 /var/named]# cd zones
+[root@vm1 /var/named/zones]#
+
+
+4. Создадим запись для internal-зоны "mydomain.ru" (файл /var/named/zones/mydomain.ru).
+
+[root@vm1 /var/named/zones]# touch mydomain.ru
+[root@vm1 /var/named/zones]# nano mydomain.ru 
+[root@vm1 /var/named/zones]# cat mydomain.ru
+$TTL 604800
+@	IN	SOA	ns.mydomain.ru. admin.mydomain.ru. (
+					20240219	; serial
+					604800		; refresh
+					86400		; retry
+					24192000	; expire
+					604800 )	; minimum
+		NS		ns.mydomain.ru.
+
+@	    IN	A	192.168.124.87
+
+core    IN	A	192.168.124.87
+ns	    IN	A	192.168.124.87
+www	    IN	A	192.168.124.87
+
+
+5. Создадим запись для external-зоны "mydomain.ru" (файл /var/named/zones/etx-mydomain.ru).
+
+[root@vm1 /var/named/zones]# touch ext-mydomain.ru
+[root@vm1 /var/named/zones]# nano ext-mydomain.ru 
+[root@vm1 /var/named/zones]# cat ext-mydomain.ru
+$TTL 604800
+@	IN	SOA	ns.mydomain.ru. admin.mydomain.ru. (
+					20240219	; serial
+					604800		; refresh
+					86400		; retry
+					24192000	; expire
+					604800 )	; minimum
+		NS		ns.mydomain.ru.
+
+@	    IN	A	192.168.124.87
+
+ns	    IN	A	192.168.124.87
+ftp	    IN	A	192.168.124.87
+mail	IN	A	192.168.124.87
+
+
+6. Проверка на отсутствие ошибок в файле конфигурации BIND.
+
+[root@vm1 /var/named/zones]# named-checkconf
+
+
+7. Разрешение и запуск DNS-сервера на BIND.
+
+[root@vm1 /var/named/zones]# systemctl enale named
+[root@vm1 /var/named/zones]# systemctl start named
+
+
+8. Подключение к VM2 по ssh. Клиент internal-зоны.
+
+user@fedora:~$ ssh root@192.168.124.64
+root@192.168.124.64's password: 
+[root@vm2 ~]# 
+
+
+9. Настроим резольвер для подключения к DNS-серверу (файл /etc/resolv.conf).
+
+[root@vm2 ~]# nano /etc/resolv.conf
+[root@vm2 ~]# cat /etc/resolv.conf
+domain mydomain.ru
+nameserver 192.168.124.87
+nameserver 8.8.8.8
+
+
+10. Проверяем подключения к DNS-серверу internal-зоны с помощью dig, nslookup и ping.
+
+[root@vm2 ~]# #=========================================================================================
+[root@vm2 ~]# dig mydomain.ru
+
+; <<>> DiG 9.16.23-RH <<>> mydomain.ru
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 61937
+;; flags: qr aa rd ra; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 1
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 1232
+; COOKIE: feb5fd0dbb50b5fb0100000065e04a9c6e895d113f30950b (good)
+;; QUESTION SECTION:
+;mydomain.ru.			IN	A
+
+;; ANSWER SECTION:
+mydomain.ru.		604800	IN	A	192.168.124.87
+
+;; Query time: 0 msec
+;; SERVER: 192.168.124.87#53(192.168.124.87)
+;; WHEN: Thu Feb 29 14:13:00 +05 2024
+;; MSG SIZE  rcvd: 84
+
+
+[root@vm2 ~]# dig ns
+
+; <<>> DiG 9.16.23-RH <<>> ns
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 18062
+;; flags: qr rd ra; QUERY: 1, ANSWER: 13, AUTHORITY: 0, ADDITIONAL: 27
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 1232
+; COOKIE: 910988eaefcf26810100000065e04abc6fba6de693955fbc (good)
+;; QUESTION SECTION:
+;.				IN	NS
+
+;; ANSWER SECTION:
+.			534233	IN	NS	h.root-servers.net.
+.			534233	IN	NS	a.root-servers.net.
+.			534233	IN	NS	i.root-servers.net.
+.			534233	IN	NS	b.root-servers.net.
+.			534233	IN	NS	m.root-servers.net.
+.			534233	IN	NS	f.root-servers.net.
+.			534233	IN	NS	l.root-servers.net.
+.			534233	IN	NS	d.root-servers.net.
+.			534233	IN	NS	k.root-servers.net.
+.			534233	IN	NS	j.root-servers.net.
+.			534233	IN	NS	c.root-servers.net.
+.			534233	IN	NS	g.root-servers.net.
+.			534233	IN	NS	e.root-servers.net.
+
+;; ADDITIONAL SECTION:
+j.root-servers.net.	534233	IN	A	192.58.128.30
+a.root-servers.net.	534233	IN	A	198.41.0.4
+g.root-servers.net.	534233	IN	A	192.112.36.4
+d.root-servers.net.	534233	IN	A	199.7.91.13
+c.root-servers.net.	534233	IN	A	192.33.4.12
+f.root-servers.net.	534233	IN	A	192.5.5.241
+i.root-servers.net.	534233	IN	A	192.36.148.17
+b.root-servers.net.	534233	IN	A	170.247.170.2
+e.root-servers.net.	534233	IN	A	192.203.230.10
+h.root-servers.net.	534233	IN	A	198.97.190.53
+m.root-servers.net.	534233	IN	A	202.12.27.33
+l.root-servers.net.	534233	IN	A	199.7.83.42
+k.root-servers.net.	534233	IN	A	193.0.14.129
+j.root-servers.net.	534233	IN	AAAA	2001:503:c27::2:30
+a.root-servers.net.	534233	IN	AAAA	2001:503:ba3e::2:30
+g.root-servers.net.	534233	IN	AAAA	2001:500:12::d0d
+d.root-servers.net.	534233	IN	AAAA	2001:500:2d::d
+c.root-servers.net.	534233	IN	AAAA	2001:500:2::c
+f.root-servers.net.	534233	IN	AAAA	2001:500:2f::f
+i.root-servers.net.	534233	IN	AAAA	2001:7fe::53
+b.root-servers.net.	534233	IN	AAAA	2801:1b8:10::b
+e.root-servers.net.	534233	IN	AAAA	2001:500:a8::e
+h.root-servers.net.	534233	IN	AAAA	2001:500:1::53
+m.root-servers.net.	534233	IN	AAAA	2001:dc3::35
+l.root-servers.net.	534233	IN	AAAA	2001:500:9f::42
+k.root-servers.net.	534233	IN	AAAA	2001:7fd::1
+
+;; Query time: 0 msec
+;; SERVER: 192.168.124.87#53(192.168.124.87)
+;; WHEN: Thu Feb 29 14:13:32 +05 2024
+;; MSG SIZE  rcvd: 851
+
+
+[root@vm2 ~]# dig core
+
+; <<>> DiG 9.16.23-RH <<>> core
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NXDOMAIN, id: 37838
+;; flags: qr rd ra; QUERY: 1, ANSWER: 0, AUTHORITY: 1, ADDITIONAL: 1
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 1232
+; COOKIE: eb7914d8aabab3850100000065e04afa4369e6285f81520e (good)
+;; QUESTION SECTION:
+;core.				IN	A
+
+;; AUTHORITY SECTION:
+.			10772	IN	SOA	a.root-servers.net. nstld.verisign-grs.com. 2024022900 1800 900 604800 86400
+
+;; Query time: 0 msec
+;; SERVER: 192.168.124.87#53(192.168.124.87)
+;; WHEN: Thu Feb 29 14:14:34 +05 2024
+;; MSG SIZE  rcvd: 136
+
+
+[root@vm2 ~]# dig www
+
+; <<>> DiG 9.16.23-RH <<>> www
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NXDOMAIN, id: 20109
+;; flags: qr rd ra; QUERY: 1, ANSWER: 0, AUTHORITY: 1, ADDITIONAL: 1
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 1232
+; COOKIE: aceefdb1a26567460100000065e04b0c015136b7ad316de8 (good)
+;; QUESTION SECTION:
+;www.				IN	A
+
+;; AUTHORITY SECTION:
+.			10800	IN	SOA	a.root-servers.net. nstld.verisign-grs.com. 2024022900 1800 900 604800 86400
+
+;; Query time: 135 msec
+;; SERVER: 192.168.124.87#53(192.168.124.87)
+;; WHEN: Thu Feb 29 14:14:52 +05 2024
+;; MSG SIZE  rcvd: 135
+
+[root@vm2 ~]# #=========================================================================================
+[root@vm2 ~]# nslookup mydomain.ru
+Server:		192.168.124.87
+Address:	192.168.124.87#53
+
+Name:	mydomain.ru
+Address: 192.168.124.87
+
+
+[root@vm2 ~]# nslookup ns
+Server:		192.168.124.87
+Address:	192.168.124.87#53
+
+Name:	ns.mydomain.ru
+Address: 192.168.124.87
+
+
+[root@vm2 ~]# nslookup core
+Server:		192.168.124.87
+Address:	192.168.124.87#53
+
+Name:	core.mydomain.ru
+Address: 192.168.124.87
+
+
+[root@vm2 ~]# nslookup www
+Server:		192.168.124.87
+Address:	192.168.124.87#53
+
+Name:	www.mydomain.ru
+Address: 192.168.124.87
+
+[root@vm2 ~]# #=========================================================================================
+[root@vm2 ~]# ping mydomain.ru
+PING mydomain.ru (192.168.124.87) 56(84) bytes of data.
+64 bytes from mydomain.ru (192.168.124.87): icmp_seq=1 ttl=64 time=0.300 ms
+64 bytes from mydomain.ru (192.168.124.87): icmp_seq=2 ttl=64 time=0.738 ms
+...
+
+
+[root@vm2 ~]# ping ns
+PING ns.mydomain.ru (192.168.124.87) 56(84) bytes of data.
+64 bytes from mydomain.ru (192.168.124.87): icmp_seq=1 ttl=64 time=0.155 ms
+64 bytes from mydomain.ru (192.168.124.87): icmp_seq=2 ttl=64 time=0.549 ms
+...
+
+
+[root@vm2 ~]# ping core
+PING core.mydomain.ru (192.168.124.87) 56(84) bytes of data.
+64 bytes from mydomain.ru (192.168.124.87): icmp_seq=1 ttl=64 time=0.215 ms
+64 bytes from mydomain.ru (192.168.124.87): icmp_seq=2 ttl=64 time=0.551 ms
+...
+
+
+[root@vm2 ~]# ping www
+PING www.mydomain.ru (192.168.124.87) 56(84) bytes of data.
+64 bytes from mydomain.ru (192.168.124.87): icmp_seq=1 ttl=64 time=0.238 ms
+64 bytes from mydomain.ru (192.168.124.87): icmp_seq=2 ttl=64 time=0.611 ms
+...
+
+
+11. Подключение к VM3 по ssh. Клиент external-зоны.
+
+user@fedora:~$ ssh root@192.168.124.227
+root@192.168.124.227's password: 
+[root@vm3 ~]# 
+
+
+12. Настроим резольвер для подключения к DNS-серверу (файл /etc/resolv.conf).
+
+[root@vm3 ~]# nano /etc/resolv.conf
+[root@vm3 ~]# cat /etc/resolv.conf
+domain mydomain.ru
+nameserver 192.168.124.87
+nameserver 8.8.8.8
+
+
+13. Проверяем подключения к DNS-серверу external-зоны с помощью dig, nslookup и ping.
+
+[root@vm3 ~]# #=========================================================================================
+[root@vm3 ~]# dig mydomain.ru
+
+; <<>> DiG 9.16.23-RH <<>> mydomain.ru
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 34127
+;; flags: qr aa rd ra; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 1
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 1232
+; COOKIE: 9220ff05f5b676ee0100000065e04cf0b5489e1955e1adc5 (good)
+;; QUESTION SECTION:
+;mydomain.ru.			IN	A
+
+;; ANSWER SECTION:
+mydomain.ru.		604800	IN	A	192.168.124.87
+
+;; Query time: 0 msec
+;; SERVER: 192.168.124.87#53(192.168.124.87)
+;; WHEN: Thu Feb 29 14:22:56 +05 2024
+;; MSG SIZE  rcvd: 84
+
+
+[root@vm3 ~]# dig ns
+
+; <<>> DiG 9.16.23-RH <<>> ns
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 24280
+;; flags: qr rd ra; QUERY: 1, ANSWER: 13, AUTHORITY: 0, ADDITIONAL: 27
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 1232
+; COOKIE: d8c2257d992e374d0100000065e04d1cbfaa9a4a90c27a65 (good)
+;; QUESTION SECTION:
+;.				IN	NS
+
+;; ANSWER SECTION:
+.			533625	IN	NS	h.root-servers.net.
+.			533625	IN	NS	m.root-servers.net.
+.			533625	IN	NS	g.root-servers.net.
+.			533625	IN	NS	b.root-servers.net.
+.			533625	IN	NS	d.root-servers.net.
+.			533625	IN	NS	e.root-servers.net.
+.			533625	IN	NS	a.root-servers.net.
+.			533625	IN	NS	f.root-servers.net.
+.			533625	IN	NS	c.root-servers.net.
+.			533625	IN	NS	i.root-servers.net.
+.			533625	IN	NS	j.root-servers.net.
+.			533625	IN	NS	k.root-servers.net.
+.			533625	IN	NS	l.root-servers.net.
+
+;; ADDITIONAL SECTION:
+a.root-servers.net.	533625	IN	A	198.41.0.4
+b.root-servers.net.	533625	IN	A	170.247.170.2
+c.root-servers.net.	533625	IN	A	192.33.4.12
+d.root-servers.net.	533625	IN	A	199.7.91.13
+e.root-servers.net.	533625	IN	A	192.203.230.10
+f.root-servers.net.	533625	IN	A	192.5.5.241
+g.root-servers.net.	533625	IN	A	192.112.36.4
+h.root-servers.net.	533625	IN	A	198.97.190.53
+i.root-servers.net.	533625	IN	A	192.36.148.17
+j.root-servers.net.	533625	IN	A	192.58.128.30
+k.root-servers.net.	533625	IN	A	193.0.14.129
+l.root-servers.net.	533625	IN	A	199.7.83.42
+m.root-servers.net.	533625	IN	A	202.12.27.33
+a.root-servers.net.	533625	IN	AAAA	2001:503:ba3e::2:30
+b.root-servers.net.	533625	IN	AAAA	2801:1b8:10::b
+c.root-servers.net.	533625	IN	AAAA	2001:500:2::c
+d.root-servers.net.	533625	IN	AAAA	2001:500:2d::d
+e.root-servers.net.	533625	IN	AAAA	2001:500:a8::e
+f.root-servers.net.	533625	IN	AAAA	2001:500:2f::f
+g.root-servers.net.	533625	IN	AAAA	2001:500:12::d0d
+h.root-servers.net.	533625	IN	AAAA	2001:500:1::53
+i.root-servers.net.	533625	IN	AAAA	2001:7fe::53
+j.root-servers.net.	533625	IN	AAAA	2001:503:c27::2:30
+k.root-servers.net.	533625	IN	AAAA	2001:7fd::1
+l.root-servers.net.	533625	IN	AAAA	2001:500:9f::42
+m.root-servers.net.	533625	IN	AAAA	2001:dc3::35
+
+;; Query time: 0 msec
+;; SERVER: 192.168.124.87#53(192.168.124.87)
+;; WHEN: Thu Feb 29 14:23:40 +05 2024
+;; MSG SIZE  rcvd: 851
+
+
+[root@vm3 ~]# dig ftp
+
+; <<>> DiG 9.16.23-RH <<>> ftp
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NXDOMAIN, id: 7834
+;; flags: qr rd ra; QUERY: 1, ANSWER: 0, AUTHORITY: 1, ADDITIONAL: 1
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 1232
+; COOKIE: 6360df30b3458e5f0100000065e04d51254cfbac4f839b51 (good)
+;; QUESTION SECTION:
+;ftp.				IN	A
+
+;; AUTHORITY SECTION:
+.			10800	IN	SOA	a.root-servers.net. nstld.verisign-grs.com. 2024022900 1800 900 604800 86400
+
+;; Query time: 159 msec
+;; SERVER: 192.168.124.87#53(192.168.124.87)
+;; WHEN: Thu Feb 29 14:24:33 +05 2024
+;; MSG SIZE  rcvd: 135
+
+
+[root@vm3 ~]# dig mail
+
+; <<>> DiG 9.16.23-RH <<>> mail
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NXDOMAIN, id: 58279
+;; flags: qr rd ra; QUERY: 1, ANSWER: 0, AUTHORITY: 1, ADDITIONAL: 1
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 1232
+; COOKIE: 28c5e96426c4dc940100000065e04d64c8436567b3f6c515 (good)
+;; QUESTION SECTION:
+;mail.				IN	A
+
+;; AUTHORITY SECTION:
+.			10800	IN	SOA	a.root-servers.net. nstld.verisign-grs.com. 2024022900 1800 900 604800 86400
+
+;; Query time: 223 msec
+;; SERVER: 192.168.124.87#53(192.168.124.87)
+;; WHEN: Thu Feb 29 14:24:52 +05 2024
+;; MSG SIZE  rcvd: 136
+
+
+[root@vm3 ~]# #=========================================================================================
+[root@vm3 ~]# nslookup mydomain.ru
+Server:		192.168.124.87
+Address:	192.168.124.87#53
+
+Name:	mydomain.ru
+Address: 192.168.124.87
+
+
+[root@vm3 ~]# nslookup ns
+Server:		192.168.124.87
+Address:	192.168.124.87#53
+
+Name:	ns.mydomain.ru
+Address: 192.168.124.87
+
+
+[root@vm3 ~]# nslookup ftp
+Server:		192.168.124.87
+Address:	192.168.124.87#53
+
+Name:	ftp.mydomain.ru
+Address: 192.168.124.87
+
+
+[root@vm3 ~]# nslookup mail
+Server:		192.168.124.87
+Address:	192.168.124.87#53
+
+Name:	mail.mydomain.ru
+Address: 192.168.124.87
+
+
+[root@vm3 ~]# #=========================================================================================
+[root@vm3 ~]# ping mydomain.ru
+PING mydomain.ru (192.168.124.87) 56(84) bytes of data.
+64 bytes from 192.168.124.87 (192.168.124.87): icmp_seq=1 ttl=64 time=0.163 ms
+64 bytes from 192.168.124.87 (192.168.124.87): icmp_seq=2 ttl=64 time=0.710 ms
+...
+
+
+[root@vm3 ~]# ping ns
+PING ns.mydomain.ru (192.168.124.87) 56(84) bytes of data.
+64 bytes from 192.168.124.87 (192.168.124.87): icmp_seq=1 ttl=64 time=0.233 ms
+64 bytes from 192.168.124.87 (192.168.124.87): icmp_seq=2 ttl=64 time=0.755 ms
+...
+
+
+[root@vm3 ~]# ping ftp
+PING ftp.mydomain.ru (192.168.124.87) 56(84) bytes of data.
+64 bytes from 192.168.124.87 (192.168.124.87): icmp_seq=1 ttl=64 time=0.180 ms
+64 bytes from 192.168.124.87 (192.168.124.87): icmp_seq=2 ttl=64 time=0.599 ms
+...
+
+
+[root@vm3 ~]# ping mail
+PING mail.mydomain.ru (192.168.124.87) 56(84) bytes of data.
+64 bytes from 192.168.124.87 (192.168.124.87): icmp_seq=1 ttl=64 time=0.182 ms
+64 bytes from 192.168.124.87 (192.168.124.87): icmp_seq=2 ttl=64 time=0.646 ms
+...
+
+
+14. В VM1 настроим конфигурации сервера PowerDNS (файл /etc/pdns/pdns.conf).
+
+[root@vm1 /var/named/zones]# nano /etc/pdns/pdns.conf 
+[root@vm1 /var/named/zones]# cat /etc/pdns/pdns.conf
+launch=bind
+security-poll-suffix=
+setuid=pdns
+setgid=pdns
+
+
+15. Создадим схему базы данных для миграции из BIND в PowerDNS.
+
+[root@vm1 /var/named/zones]# zone2sql --named-conf=/etc/named.conf --gpgsql > schema.psql.sql
+
+...
+
+16. Настроим конфигурации пользователя git.
+user@fedora:~$ git config --global user.email "username@mail.ru"
+user@fedora:~$ git config --global user.name "username"
+
+17. Инициализируем git-репозиторий.
+user@fedora:~$ git init
+
+18. Выложим репозиторий на github.
+user@fedora:~$ git add .
+user@fedora:~$ git commit -m "First commit"
+user@fedora:~$ git branch -M main
+user@fedora:~$ git remote add origin https://github.com/username/you-repository.git
+user@fedora:~$ git push -u origin main
+
+=====ПОЛУЧЕННЫЕ НАВЫКИ=====
+
+1. Научился подключать виртуальные и физические машины с помощью ssh.
+2. Освоил теорию работы системы доменных имен (DNS).
+3. Научился настраивать конфигурации DNS-сервера BIND.
+4. Научился настраивать записи зон.
+5. Научился разделять зоны с помощью механизма view и списка доступа acl.
+6. Научился настраивать клиентов DNS-сервера (резольверов).
+7. Научился подключать клиентов к зонам DNS-сервера.
+8. Закрепил навыки работы с git'ом.
+9. Закрепил навыки установки и настройки (сборки) операционных систем на базе UNIX.
+10. Закрепил навыки использования операционных систем на базе UNIX.
+
+
+=====СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ=====
+
+1. DNS (https://ru.wikipedia.org/wiki/DNS).
+2. DNS // Теория (https://www.youtube.com/watch?v=a_V23iYheqg).
+3. DNS.1 Устройство системы доменных имен (https://www.youtube.com/watch?v=RWCz_yafXhA).
+4. BIND (https://ru.wikipedia.org/wiki/BIND).
+5. DNS // Настройка bind (https://www.youtube.com/watch?v=JlrV1-jd-4w).
+6. Пряморукий DNS: делаем правильно / Лев Николаев (Макснет) (https://www.youtube.com/watch?v=qMaotF8E3do).
+7. DNS сервер BIND (теория) (https://habr.com/ru/articles/137587/).
+8. Настройка представлений (View) в BIND9 (https://blog.bissquit.com/unix/nastrojka-predstavlenij-view-v-bind9/).
+9. Сервер пересылки на BIND9 (https://blog.bissquit.com/unix/server-peresylki-na-bind9/#i-2).
+10. How to setup a DNS server with bind (https://fedoramagazine.org/how-to-setup-a-dns-server-with-bind/).
+11. Настройка Split DNS на одном сервере Bind (https://www.dmosk.ru/miniinstruktions.php?mini=split-dns-bind).
+12. Настройка DNS сервера на BIND9 . IPv4 и IPv6 . Split DNS . Debian (https://www.youtube.com/watch?v=UKBDT56SrF0).
+13. ПР. Настройка DNS сервера BIND9 (https://www.youtube.com/watch?v=WMorhnPZqhY).
+14. PostgreSQL (https://docs.fedoraproject.org/en-US/quick-docs/postgresql/).
+15. PowerDNS (https://sysadminmosaic.ru/powerdns/powerdns).
+16. PowerDNS (https://ru.wikipedia.org/wiki/PowerDNS).
+17. Установка PowerDNS с ипользованием БД postgres (https://tech.melmus.ru/powerdns.html).
+18. PowerDNS Authoritative Nameserver (https://doc.powerdns.com/authoritative/index.html).
+19. Installing PowerDNS (https://doc.powerdns.com/authoritative/installation.html).
+20. Migrating to PowerDNS (https://doc.powerdns.com/authoritative/migration.html).
+21. Generic MySQL backend (https://doc.powerdns.com/authoritative/backends/generic-mysql.html).
+22. Через реки, через лес прямо к PowerDNS (https://habr.com/ru/companies/ozontech/articles/722042/).
+23. Основы Git - Создание Git-репозитория (https://git-scm.com/book/ru/v2/Основы-Git-Создание-Git-репозитория).
+24. Git - Заливаем гит репозиторий на гитхаб (https://monsterlessons.com/project/lessons/zalivaem-git-repozitorij-na-githab).
+25. Как загрузить проект на github новичку за 2 минуты (https://www.youtube.com/watch?v=gzFbt7GVRKU).
